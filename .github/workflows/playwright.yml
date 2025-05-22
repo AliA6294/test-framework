@@ -45,14 +45,20 @@ jobs:
       run: npx playwright install --with-deps
     - name: Run type checks
       run: npx tsc -p tsconfig.json --noEmit
+    - name: Create report directories
+      run: |
+        mkdir -p allure-results
+        mkdir -p blob-report
+        mkdir -p test-results
+        chmod -R 777 allure-results blob-report test-results
     - name: Run Playwright tests
       env:
         HOME: /root
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         COOKIES_JSON: ${{ secrets.COOKIES_JSON }}
         LOCAL_STORAGE_JSON: ${{ secrets.LOCAL_STORAGE_JSON }}
+        DOCKER_CONFIG: "/tmp/.docker" # Override Docker config location
       run: |
-        mkdir -p allure-results
         xvfb-run npx playwright test --config=playwright.ci.config.ts --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
     - name: Upload blob report to GitHub Actions Artifacts
       if: always()
@@ -88,6 +94,11 @@ jobs:
         path: all-blob-reports
         pattern: blob-report-*
         merge-multiple: true
+    - name: Create report directories
+      run: |
+        mkdir -p playwright-report
+        mkdir -p allure-results
+        mkdir -p allure-report
     - name: Merge into HTML Report
       run: npx playwright merge-reports --reporter html ./all-blob-reports
     #- name: Setup Pages
