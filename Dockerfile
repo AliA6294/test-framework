@@ -11,22 +11,42 @@
 
 # FROM node:20-bookworm
 
-FROM mcr.microsoft.com/playwright:v1.49.1-noble
+FROM mcr.microsoft.com/playwright:v1.52.0-noble
 
 # Set working directory
 WORKDIR /app
 
+# Install Java for Allure reporting
+RUN apt-get update && apt-get install -y \
+    openjdk-11-jre \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy package.jsons first to utilize Docker cache
 COPY package.json package-lock.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with caching
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy configuration files
+COPY playwright.config.ts playwright.ci.config.ts tsconfig.json ./
 
 # Copy test code
-COPY tests playwright.config.ts tsconfig.json ./
+COPY tests ./tests
+
+# Set environment variables
+ENV NODE_ENV=production \
+    CI=true
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "process.exit(0)"
+
+# Create volume for reports
+VOLUME ["/app/allure-results", "/app/playwright-report"]
 
 # Command to run tests
-CMD ["npx", "playwright", "test"]
+CMD ["npx", "playwright", "test", "--config=playwright.ci.config.ts"]
 
 #ARG NODE_VERSION=20.10.0
 

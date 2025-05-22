@@ -1,11 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 import { testPlanFilter } from 'allure-playwright/testplan';
+import path from 'path';
 
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
 require('dotenv').config();
+
+// Global timeout values
+const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_NAVIGATION_TIMEOUT = 30000;
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -21,23 +26,52 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 3 : undefined,
+  /* Timeout for each test */
+  timeout: DEFAULT_TIMEOUT,
+  /* Expect timeout */
+  expect: {
+    timeout: DEFAULT_TIMEOUT / 2,
+  },
   grep: testPlanFilter(),
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI ? 'blob' : 'allure-playwright',
+  reporter: process.env.CI 
+    ? 'blob'
+    : [
+        ['allure-playwright'],
+        ['html', { open: 'never' }]
+      ],
+  /* Directory for snapshots and artifacts */
+  outputDir: './test-results',
   snapshotDir: './artifacts',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'https://www.youtube.com/',
-
+    
+    /* Browser context settings */
+    contextOptions: {
+      acceptDownloads: true,
+      ignoreHTTPSErrors: true,
+    },
+    
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    trace: 'on-first-retry',
+    
+    /* Capture screenshot on test failure */
+    screenshot: 'only-on-failure',
+    
+    /* Record video for failed tests */
+    video: 'retain-on-failure',
+    
+    /* Set navigation timeout */
+    navigationTimeout: DEFAULT_NAVIGATION_TIMEOUT,
+    
+    /* Additional browser launch options */
     launchOptions: {
       // BrowserType Options to allow for Google account log in
       /*headless: false,
       args: ['--disable-blink-features=AutomationControlled'],*/
     },
-    trace: 'on-first-retry',
-    video: 'retain-on-failure',
   },
 
   /* Configure projects for major browsers */
@@ -45,7 +79,8 @@ module.exports = defineConfig({
     {
       name: 'setup',
       testMatch: /setup\.authentication\.ts/,
-      use: {...devices['Desktop Chrome'],
+      use: {
+        ...devices['Desktop Chrome'],
         launchOptions: {
           args: ['--disable-blink-features=AutomationControlled'],
         },
@@ -54,7 +89,8 @@ module.exports = defineConfig({
 
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'],
+      use: { 
+        ...devices['Desktop Chrome'],
         launchOptions: {
           args: ['--disable-blink-features=AutomationControlled'],
         },
@@ -64,7 +100,8 @@ module.exports = defineConfig({
 
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'],
+      use: { 
+        ...devices['Desktop Firefox'],
         launchOptions: {
           args: ['--disable-blink-features=AutomationControlled'],
         },
@@ -82,6 +119,7 @@ module.exports = defineConfig({
     // {
     //   name: 'Mobile Chrome',
     //   use: { ...devices['Pixel 5'] },
+    //   dependencies: ['setup'],
     // },
     // {
     //   name: 'Mobile Safari',
